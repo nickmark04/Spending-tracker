@@ -2,90 +2,161 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Spending Tracker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- PWA manifest -->
-  <link rel="manifest" href="manifest.json" />
-
-  <!-- iOS support -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Spending" />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BudgetGPT Tracker</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
 </head>
 <body>
   <header>
-    <h1>Spending Tracker</h1>
-    <p class="subtitle">Offline, local-only. Just for you.</p>
+    <h1>BudgetGPT Tracker</h1>
+    <p class="subtitle">Quick view of cash, cards, and safe-to-spend.</p>
   </header>
 
   <main>
+    <!-- SETTINGS -->
     <section class="card">
-      <h2>Add Expense</h2>
-      <form id="expense-form">
-        <div class="field">
-          <label for="date">Date</label>
-          <input type="date" id="date" required />
-        </div>
-
-        <div class="field">
-          <label for="amount">Amount</label>
-          <input type="number" id="amount" step="0.01" min="0" required />
-        </div>
-
-        <div class="field">
-          <label for="category">Category</label>
-          <select id="category">
-            <option value="Food">Food</option>
-            <option value="Gas">Gas</option>
-            <option value="Groceries">Groceries</option>
-            <option value="Rent">Rent</option>
-            <option value="Bills">Bills</option>
-            <option value="Fun">Fun</option>
-            <option value="Car">Car</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="note">Note (optional)</label>
-          <input type="text" id="note" maxlength="80" placeholder="Chipotle, parts, etc." />
-        </div>
-
-        <button type="submit" class="primary">Add</button>
-      </form>
+      <h2>Settings</h2>
+      <div class="grid-2">
+        <label>
+          Hourly rate ($)
+          <input type="number" id="hourlyRate" step="0.01" />
+        </label>
+        <label>
+          Tax rate (%)
+          <input type="number" id="taxRate" step="0.1" />
+        </label>
+        <label>
+          Savings %
+          <input type="number" id="allocSavings" step="1" />
+        </label>
+        <label>
+          Spending %
+          <input type="number" id="allocSpending" step="1" />
+        </label>
+        <label>
+          Investing %
+          <input type="number" id="allocInvesting" step="1" />
+        </label>
+      </div>
+      <button id="saveSettings">Save settings</button>
     </section>
 
+    <!-- PAYCHECK -->
     <section class="card">
+      <h2>Next Paycheck</h2>
+      <div class="grid-2">
+        <label>
+          Hours this pay period
+          <input type="number" id="payHours" step="0.1" />
+        </label>
+        <label>
+          Next paycheck date
+          <input type="date" id="payDate" />
+        </label>
+      </div>
+      <div class="output-row">
+        <span>Projected net paycheck:</span>
+        <span id="netPayDisplay">$0</span>
+      </div>
+    </section>
+
+    <!-- CASH BALANCES -->
+    <section class="card">
+      <h2>Current Balances</h2>
+      <div class="grid-2">
+        <label>
+          Checking ($)
+          <input type="number" id="balChecking" step="0.01" />
+        </label>
+        <label>
+          Savings ($)
+          <input type="number" id="balSavings" step="0.01" />
+        </label>
+      </div>
+    </section>
+
+    <!-- BILLS -->
+    <section class="card">
+      <h2>Upcoming Bills</h2>
+      <div class="add-row">
+        <input type="text" id="billName" placeholder="Name (car, Spotify…)" />
+        <input type="number" id="billAmount" placeholder="Amount" step="0.01" />
+        <input type="date" id="billDue" />
+        <button id="addBill">Add</button>
+      </div>
+      <ul id="billsList" class="item-list"></ul>
+      <div class="output-row">
+        <span>Total bills before next paycheck:</span>
+        <span id="billsTotal">$0</span>
+      </div>
+    </section>
+
+    <!-- DEBTS -->
+    <section class="card">
+      <h2>Debts / Cards</h2>
+      <div class="add-row">
+        <input type="text" id="debtName" placeholder="e.g. CC #1" />
+        <input type="number" id="debtAmount" placeholder="Planned payment" step="0.01" />
+        <input type="date" id="debtDue" />
+        <button id="addDebt">Add</button>
+      </div>
+      <ul id="debtsList" class="item-list"></ul>
+      <div class="output-row">
+        <span>Total planned debt payments:</span>
+        <span id="debtsTotal">$0</span>
+      </div>
+    </section>
+
+    <!-- GOALS -->
+    <section class="card">
+      <h2>Savings Goals</h2>
+      <div class="add-row">
+        <input type="text" id="goalName" placeholder="e.g. PPK, Rebel, Gf birthday" />
+        <input type="number" id="goalTarget" placeholder="Target $" step="1" />
+        <input type="number" id="goalCurrent" placeholder="Current $" step="1" />
+        <button id="addGoal">Add</button>
+      </div>
+      <ul id="goalsList" class="item-list"></ul>
+    </section>
+
+    <!-- SUMMARY -->
+    <section class="card highlight">
       <h2>Summary</h2>
-      <div class="summary-row">
-        <span>Total (all time)</span>
-        <span id="total-all">$0.00</span>
+      <div class="output-row">
+        <span>Total cash after paycheck:</span>
+        <span id="totalCashAfter">$0</span>
       </div>
-      <div class="summary-row">
-        <span>Total (this month)</span>
-        <span id="total-month">$0.00</span>
+      <div class="output-row">
+        <span>Total required (bills + debts):</span>
+        <span id="totalRequired">$0</span>
       </div>
-      <button id="clear-data" class="danger small">Clear all data</button>
+      <div class="output-row">
+        <span>Safe to spend:</span>
+        <span id="safeToSpend">$0</span>
+      </div>
+      <hr />
+      <div class="output-row">
+        <span>To Savings:</span>
+        <span id="suggestSavings">$0</span>
+      </div>
+      <div class="output-row">
+        <span>To Spending (fun/dates):</span>
+        <span id="suggestSpending">$0</span>
+      </div>
+      <div class="output-row">
+        <span>To Investing:</span>
+        <span id="suggestInvesting">$0</span>
+      </div>
     </section>
 
-    <section class="card">
-      <h2>History</h2>
-      <div id="empty-message">No expenses yet.</div>
-      <ul id="expense-list"></ul>
+    <section class="card small">
+      <button id="recalc">Recalculate</button>
+      <button id="resetAll" class="danger">Reset all data</button>
+      <p class="note">Data is stored locally in this browser only.</p>
     </section>
   </main>
 
   <script src="app.js"></script>
-  <script>
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js').catch(console.error);
-      });
-    }
-  </script>
 </body>
 </html>
