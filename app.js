@@ -320,6 +320,12 @@ document.addEventListener("DOMContentLoaded", () => {
   renderAll();
 
   $("saveSettings").addEventListener("click", saveSettingsFromUI);
+  document.addEventListener("DOMContentLoaded", () => {
+  renderAll();
+
+  $("saveSettings").addEventListener("click", saveSettingsFromUI);
+  ...
+});
   $("balChecking").addEventListener("input", saveBalancesFromUI);
   $("balSavings").addEventListener("input", saveBalancesFromUI);
   $("payHours").addEventListener("input", savePayFromUI);
