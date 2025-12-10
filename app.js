@@ -194,7 +194,7 @@ function saveSettingsFromUI() {
   const i = Number($("allocInvesting").value) || 0;
   const total = s + p + i || 1;
 
-  // Normalize to 100 if user types chaos
+  // Normalize to percentages
   state.alloc.savings = (s / total) * 100;
   state.alloc.spending = (p / total) * 100;
   state.alloc.investing = (i / total) * 100;
@@ -202,6 +202,12 @@ function saveSettingsFromUI() {
   saveState();
   renderSettings();
   renderSummary();
+
+  // 🔽 Collapse the Settings card after saving
+  const settingsCard = document.getElementById("settingsCard");
+  if (settingsCard) {
+    settingsCard.classList.toggle("hidden");
+  }
 }
 $("saveSettings").closest(".card").classList.add("hidden");
 function saveBalancesFromUI() {
