@@ -203,7 +203,7 @@ function saveSettingsFromUI() {
   renderSettings();
   renderSummary();
 }
-
+$("saveSettings").closest(".card").classList.add("hidden");
 function saveBalancesFromUI() {
   state.balances.checking = Number($("balChecking").value) || 0;
   state.balances.savings = Number($("balSavings").value) || 0;
