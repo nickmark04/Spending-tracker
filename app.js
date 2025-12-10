@@ -1,139 +1,351 @@
-const STORAGE_KEY = 'spending-tracker-data-v1';
+// Simple BudgetGPT tracker using localStorage
 
-const form = document.getElementById('expense-form');
-const dateInput = document.getElementById('date');
-const amountInput = document.getElementById('amount');
-const categoryInput = document.getElementById('category');
-const noteInput = document.getElementById('note');
+const STORAGE_KEY = "budgetGPT_state_v1";
 
-const totalAllEl = document.getElementById('total-all');
-const totalMonthEl = document.getElementById('total-month');
-const listEl = document.getElementById('expense-list');
-const emptyMessageEl = document.getElementById('empty-message');
-const clearBtn = document.getElementById('clear-data');
+const defaultState = {
+  hourlyRate: 22.5,
+  taxRate: 14, // percent
+  alloc: { savings: 50, spending: 40, investing: 10 },
+  pay: {
+    hours: 0,
+    date: ""
+  },
+  balances: {
+    checking: 0,
+    savings: 0
+  },
+  bills: [], // {id, name, amount, due}
+  debts: [], // {id, name, amount, due}
+  goals: [] // {id, name, target, current}
+};
 
-function todayISO() {
-  const d = new Date();
-  const offset = d.getTimezoneOffset();
-  const local = new Date(d.getTime() - offset * 60000);
-  return local.toISOString().split('T')[0];
-}
+let state = loadState();
 
-function loadData() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
+// ---------- DOM helpers ----------
+const $ = (id) => document.getElementById(id);
+
+// ---------- Load / Save ----------
+function loadState() {
   try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return structuredClone(defaultState);
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+    return {
+      ...structuredClone(defaultState),
+      ...parsed,
+      alloc: { ...defaultState.alloc, ...(parsed.alloc || {}) },
+      balances: { ...defaultState.balances, ...(parsed.balances || {}) }
+    };
+  } catch (e) {
+    console.warn("Failed to load state, using defaults", e);
+    return structuredClone(defaultState);
   }
 }
 
-function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-function formatMoney(value) {
-  return '$' + value.toFixed(2);
+// ---------- Render ----------
+function formatMoney(val) {
+  if (isNaN(val)) return "$0";
+  return "$" + val.toFixed(2);
 }
 
-function render() {
-  const data = loadData();
-  if (data.length === 0) {
-    emptyMessageEl.style.display = 'block';
-    listEl.innerHTML = '';
-    totalAllEl.textContent = '$0.00';
-    totalMonthEl.textContent = '$0.00';
-    return;
-  }
+function renderSettings() {
+  $("hourlyRate").value = state.hourlyRate;
+  $("taxRate").value = state.taxRate;
+  $("allocSavings").value = state.alloc.savings;
+  $("allocSpending").value = state.alloc.spending;
+  $("allocInvesting").value = state.alloc.investing;
+}
 
-  emptyMessageEl.style.display = 'none';
+function renderBalances() {
+  $("balChecking").value = state.balances.checking;
+  $("balSavings").value = state.balances.savings;
+}
 
-  // Sort newest first
-  data.sort((a, b) => (a.date < b.date ? 1 : -1));
+function renderPay() {
+  $("payHours").value = state.pay.hours;
+  $("payDate").value = state.pay.date;
+}
 
-  // Render list
-  listEl.innerHTML = '';
-  data.forEach((item) => {
-    const li = document.createElement('li');
-    li.className = 'expense-item';
+function renderBills() {
+  const list = $("billsList");
+  list.innerHTML = "";
+  let total = 0;
+  state.bills.forEach((b) => {
+    total += Number(b.amount) || 0;
+    const li = document.createElement("li");
+    li.className = "item-row";
+    li.innerHTML = `
+      <div>
+        <div>${b.name || "Unnamed bill"} - <strong>${formatMoney(
+      Number(b.amount) || 0
+    )}</strong></div>
+        <div class="meta">Due: ${b.due || "n/a"}</div>
+      </div>
+      <button data-type="bill" data-id="${b.id}">Remove</button>
+    `;
+    list.appendChild(li);
+  });
+  $("billsTotal").textContent = formatMoney(total);
+}
 
-    const main = document.createElement('div');
-    main.className = 'expense-main';
+function renderDebts() {
+  const list = $("debtsList");
+  list.innerHTML = "";
+  let total = 0;
+  state.debts.forEach((d) => {
+    total += Number(d.amount) || 0;
+    const li = document.createElement("li");
+    li.className = "item-row";
+    li.innerHTML = `
+      <div>
+        <div>${d.name || "Debt"} - <strong>${formatMoney(
+      Number(d.amount) || 0
+    )}</strong></div>
+        <div class="meta">Planned by: ${d.due || "n/a"}</div>
+      </div>
+      <button data-type="debt" data-id="${d.id}">Remove</button>
+    `;
+    list.appendChild(li);
+  });
+  $("debtsTotal").textContent = formatMoney(total);
+}
 
-    const left = document.createElement('div');
-    left.textContent = `${item.category}`;
+function renderGoals() {
+  const list = $("goalsList");
+  list.innerHTML = "";
+  state.goals.forEach((g) => {
+    const percent =
+      g.target > 0 ? Math.min(100, (Number(g.current) / g.target) * 100) : 0;
+    const li = document.createElement("li");
+    li.className = "item-row";
+    li.innerHTML = `
+      <div>
+        <div><strong>${g.name || "Goal"}</strong></div>
+        <div class="meta">${formatMoney(
+          Number(g.current) || 0
+        )} / ${formatMoney(Number(g.target) || 0)} (${percent.toFixed(
+      1
+    )}%)</div>
+      </div>
+      <button data-type="goal" data-id="${g.id}">Remove</button>
+    `;
+    list.appendChild(li);
+  });
+}
 
-    const right = document.createElement('div');
-    right.className = 'expense-amount';
-    right.textContent = formatMoney(item.amount);
+function renderSummary() {
+  const gross = state.hourlyRate * state.pay.hours;
+  const net = gross * (1 - state.taxRate / 100);
+  $("netPayDisplay").textContent = formatMoney(isNaN(net) ? 0 : net);
 
-    main.appendChild(left);
-    main.appendChild(right);
+  const totalCashAfter =
+    (Number(state.balances.checking) || 0) +
+    (Number(state.balances.savings) || 0) +
+    (isNaN(net) ? 0 : net);
 
-    const meta = document.createElement('div');
-    meta.className = 'expense-meta';
-    meta.textContent = item.date;
+  const billsTotal = state.bills.reduce(
+    (sum, b) => sum + (Number(b.amount) || 0),
+    0
+  );
+  const debtsTotal = state.debts.reduce(
+    (sum, d) => sum + (Number(d.amount) || 0),
+    0
+  );
 
-    li.appendChild(main);
-    li.appendChild(meta);
+  const requiredTotal = billsTotal + debtsTotal;
+  const leftover = totalCashAfter - requiredTotal;
 
-    if (item.note && item.note.trim() !== '') {
-      const note = document.createElement('div');
-      note.className = 'expense-note';
-      note.textContent = item.note;
-      li.appendChild(note);
-    }
+  $("totalCashAfter").textContent = formatMoney(totalCashAfter);
+  $("totalRequired").textContent = formatMoney(requiredTotal);
+  $("safeToSpend").textContent = formatMoney(leftover);
 
-    listEl.appendChild(li);
+  let safe = leftover > 0 ? leftover : 0;
+
+  const allocSavings = (safe * state.alloc.savings) / 100;
+  const allocSpending = (safe * state.alloc.spending) / 100;
+  const allocInvesting = (safe * state.alloc.investing) / 100;
+
+  $("suggestSavings").textContent = formatMoney(allocSavings);
+  $("suggestSpending").textContent = formatMoney(allocSpending);
+  $("suggestInvesting").textContent = formatMoney(allocInvesting);
+}
+
+function renderAll() {
+  renderSettings();
+  renderBalances();
+  renderPay();
+  renderBills();
+  renderDebts();
+  renderGoals();
+  renderSummary();
+}
+
+// ---------- Event handlers ----------
+function saveSettingsFromUI() {
+  state.hourlyRate = Number($("hourlyRate").value) || 0;
+  state.taxRate = Number($("taxRate").value) || 0;
+
+  const s = Number($("allocSavings").value) || 0;
+  const p = Number($("allocSpending").value) || 0;
+  const i = Number($("allocInvesting").value) || 0;
+  const total = s + p + i || 1;
+
+  // Normalize to 100 if user types chaos
+  state.alloc.savings = (s / total) * 100;
+  state.alloc.spending = (p / total) * 100;
+  state.alloc.investing = (i / total) * 100;
+
+  saveState();
+  renderSettings();
+  renderSummary();
+}
+
+function saveBalancesFromUI() {
+  state.balances.checking = Number($("balChecking").value) || 0;
+  state.balances.savings = Number($("balSavings").value) || 0;
+  saveState();
+  renderSummary();
+}
+
+function savePayFromUI() {
+  state.pay.hours = Number($("payHours").value) || 0;
+  state.pay.date = $("payDate").value || "";
+  saveState();
+  renderSummary();
+}
+
+function addBillFromUI() {
+  const name = $("billName").value.trim();
+  const amount = Number($("billAmount").value) || 0;
+  const due = $("billDue").value || "";
+
+  if (!name && !amount) return;
+
+  state.bills.push({
+    id: crypto.randomUUID(),
+    name,
+    amount,
+    due
   });
 
-  // Totals
-  const totalAll = data.reduce((sum, x) => sum + x.amount, 0);
+  $("billName").value = "";
+  $("billAmount").value = "";
+  $("billDue").value = "";
 
-  const now = new Date();
-  const month = now.getMonth();
-  const year = now.getFullYear();
-
-  const totalMonth = data.reduce((sum, x) => {
-    const d = new Date(x.date);
-    return d.getMonth() === month && d.getFullYear() === year
-      ? sum + x.amount
-      : sum;
-  }, 0);
-
-  totalAllEl.textContent = formatMoney(totalAll);
-  totalMonthEl.textContent = formatMoney(totalMonth);
+  saveState();
+  renderBills();
+  renderSummary();
 }
 
-form.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const date = dateInput.value || todayISO();
-  const amount = parseFloat(amountInput.value);
-  const category = categoryInput.value || 'Other';
-  const note = noteInput.value.trim();
+function addDebtFromUI() {
+  const name = $("debtName").value.trim();
+  const amount = Number($("debtAmount").value) || 0;
+  const due = $("debtDue").value || "";
+  if (!name && !amount) return;
 
-  if (!amount || amount <= 0) {
-    alert('Enter a valid amount.');
-    return;
+  state.debts.push({
+    id: crypto.randomUUID(),
+    name,
+    amount,
+    due
+  });
+
+  $("debtName").value = "";
+  $("debtAmount").value = "";
+  $("debtDue").value = "";
+
+  saveState();
+  renderDebts();
+  renderSummary();
+}
+
+function addGoalFromUI() {
+  const name = $("goalName").value.trim();
+  const target = Number($("goalTarget").value) || 0;
+  const current = Number($("goalCurrent").value) || 0;
+  if (!name && !target) return;
+
+  state.goals.push({
+    id: crypto.randomUUID(),
+    name,
+    target,
+    current
+  });
+
+  $("goalName").value = "";
+  $("goalTarget").value = "";
+  $("goalCurrent").value = "";
+
+  saveState();
+  renderGoals();
+}
+
+function handleListClick(e) {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const type = btn.dataset.type;
+  if (!id || !type) return;
+
+  if (type === "bill") {
+    state.bills = state.bills.filter((b) => b.id !== id);
+    saveState();
+    renderBills();
+    renderSummary();
+  } else if (type === "debt") {
+    state.debts = state.debts.filter((d) => d.id !== id);
+    saveState();
+    renderDebts();
+    renderSummary();
+  } else if (type === "goal") {
+    state.goals = state.goals.filter((g) => g.id !== id);
+    saveState();
+    renderGoals();
   }
+}
 
-  const data = loadData();
-  data.push({ date, amount, category, note });
-  saveData(data);
+function resetAll() {
+  if (!confirm("Reset all data? This cannot be undone.")) return;
+  state = structuredClone(defaultState);
+  saveState();
+  renderAll();
+}
 
-  amountInput.value = '';
-  noteInput.value = '';
-  render();
+// ---------- Init ----------
+document.addEventListener("DOMContentLoaded", () => {
+  renderAll();
+
+  $("saveSettings").addEventListener("click", saveSettingsFromUI);
+  $("balChecking").addEventListener("input", saveBalancesFromUI);
+  $("balSavings").addEventListener("input", saveBalancesFromUI);
+  $("payHours").addEventListener("input", savePayFromUI);
+  $("payDate").addEventListener("change", savePayFromUI);
+
+  $("addBill").addEventListener("click", addBillFromUI);
+  $("addDebt").addEventListener("click", addDebtFromUI);
+  $("addGoal").addEventListener("click", addGoalFromUI);
+
+  $("billsList").addEventListener("click", handleListClick);
+  $("debtsList").addEventListener("click", handleListClick);
+  $("goalsList").addEventListener("click", handleListClick);
+
+  $("recalc").addEventListener("click", () => {
+    saveSettingsFromUI();
+    saveBalancesFromUI();
+    savePayFromUI();
+    renderSummary();
+  });
+
+  $("resetAll").addEventListener("click", resetAll);
+
+  // Register service worker if present
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker
+      .register("service-worker.js")
+      .catch((err) => console.warn("SW registration failed", err));
+  }
 });
-
-clearBtn.addEventListener('click', () => {
-  if (!confirm('Clear ALL saved expenses?')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  render();
-});
-
-// Initialize default date and render
-dateInput.value = todayISO();
-render();
