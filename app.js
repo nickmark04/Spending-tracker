@@ -14,9 +14,11 @@ const defaultState = {
     checking: 0,
     savings: 0
   },
-  bills: [], // {id, name, amount, due}
-  debts: [], // {id, name, amount, due}
-  goals: [] // {id, name, target, current}
+  bills: [],      // {id, name, amount, due}
+  debts: [],      // {id, name, amount, due}
+  goals: [],      // {id, name, target, current}
+  recurring: [],  // {id, name, amount, note}
+  useRecurring: true
 };
 
 let state = loadState();
@@ -58,6 +60,8 @@ function renderSettings() {
   $("allocSavings").value = state.alloc.savings;
   $("allocSpending").value = state.alloc.spending;
   $("allocInvesting").value = state.alloc.investing;
+  const useRecurring = $("useRecurring");
+  if (useRecurring) useRecurring.checked = !!state.useRecurring;
 }
 
 function renderBalances() {
@@ -137,6 +141,35 @@ function renderGoals() {
   });
 }
 
+function renderRecurring() {
+  const list = $("recurringList");
+  const totalEl = $("recurringTotal");
+  list.innerHTML = "";
+  let total = 0;
+
+  state.recurring.forEach((r) => {
+    total += Number(r.amount) || 0;
+    const li = document.createElement("li");
+    li.className = "item-row";
+    li.innerHTML = `
+      <div>
+        <div>${r.name || "Recurring"} - <strong>${formatMoney(
+      Number(r.amount) || 0
+    )}</strong></div>
+        ${
+          r.note
+            ? `<div class="meta">${r.note}</div>`
+            : ""
+        }
+      </div>
+      <button data-type="recurring" data-id="${r.id}">Remove</button>
+    `;
+    list.appendChild(li);
+  });
+
+  if (totalEl) totalEl.textContent = formatMoney(total);
+}
+
 function renderSummary() {
   const gross = state.hourlyRate * state.pay.hours;
   const net = gross * (1 - state.taxRate / 100);
@@ -156,10 +189,19 @@ function renderSummary() {
     0
   );
 
-  const requiredTotal = billsTotal + debtsTotal;
-  const leftover = totalCashAfter - requiredTotal;
+  const recurringTotal = state.recurring.reduce(
+    (sum, r) => sum + (Number(r.amount) || 0),
+    0
+  );
+
+  const effectiveRecurring = state.useRecurring ? recurringTotal : 0;
 
   $("totalCashAfter").textContent = formatMoney(totalCashAfter);
+  $("summaryRecurring").textContent = formatMoney(effectiveRecurring);
+
+  const requiredTotal = billsTotal + debtsTotal + effectiveRecurring;
+  const leftover = totalCashAfter - requiredTotal;
+
   $("totalRequired").textContent = formatMoney(requiredTotal);
   $("safeToSpend").textContent = formatMoney(leftover);
 
@@ -174,6 +216,16 @@ function renderSummary() {
   $("suggestInvesting").textContent = formatMoney(allocInvesting);
 }
 
+function updateRecurringVisibility() {
+  const card = $("recurringCard");
+  if (!card) return;
+  if (state.useRecurring) {
+    card.classList.remove("hidden");
+  } else {
+    card.classList.add("hidden");
+  }
+}
+
 function renderAll() {
   renderSettings();
   renderBalances();
@@ -181,6 +233,8 @@ function renderAll() {
   renderBills();
   renderDebts();
   renderGoals();
+  renderRecurring();
+  updateRecurringVisibility();
   renderSummary();
 }
 
@@ -198,8 +252,12 @@ function saveSettingsFromUI() {
   state.alloc.spending = (p / total) * 100;
   state.alloc.investing = (i / total) * 100;
 
+  const useRecurring = $("useRecurring");
+  state.useRecurring = useRecurring ? !!useRecurring.checked : true;
+
   saveState();
   renderSettings();
+  updateRecurringVisibility();
   renderSummary();
 
   const settingsCard = $("settingsCard");
@@ -288,6 +346,29 @@ function addGoalFromUI() {
   renderGoals();
 }
 
+function addRecurringFromUI() {
+  const name = $("recName").value.trim();
+  const amount = Number($("recAmount").value) || 0;
+  const note = $("recNote").value.trim();
+
+  if (!name && !amount) return;
+
+  state.recurring.push({
+    id: crypto.randomUUID(),
+    name,
+    amount,
+    note
+  });
+
+  $("recName").value = "";
+  $("recAmount").value = "";
+  $("recNote").value = "";
+
+  saveState();
+  renderRecurring();
+  renderSummary();
+}
+
 function handleListClick(e) {
   const btn = e.target.closest("button");
   if (!btn) return;
@@ -309,6 +390,11 @@ function handleListClick(e) {
     state.goals = state.goals.filter((g) => g.id !== id);
     saveState();
     renderGoals();
+  } else if (type === "recurring") {
+    state.recurring = state.recurring.filter((r) => r.id !== id);
+    saveState();
+    renderRecurring();
+    renderSummary();
   }
 }
 
@@ -348,10 +434,12 @@ document.addEventListener("DOMContentLoaded", () => {
   $("addBill").addEventListener("click", addBillFromUI);
   $("addDebt").addEventListener("click", addDebtFromUI);
   $("addGoal").addEventListener("click", addGoalFromUI);
+  $("addRecurring").addEventListener("click", addRecurringFromUI);
 
   $("billsList").addEventListener("click", handleListClick);
   $("debtsList").addEventListener("click", handleListClick);
   $("goalsList").addEventListener("click", handleListClick);
+  $("recurringList").addEventListener("click", handleListClick);
 
   $("recalc").addEventListener("click", () => {
     saveSettingsFromUI();
