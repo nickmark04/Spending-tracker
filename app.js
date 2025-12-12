@@ -21,7 +21,7 @@ const defaultState = {
 
 let state = loadState();
 
-// ---------- DOM helpers ----------
+// ---------- DOM helper ----------
 const $ = (id) => document.getElementById(id);
 
 // ---------- Load / Save ----------
@@ -194,7 +194,6 @@ function saveSettingsFromUI() {
   const i = Number($("allocInvesting").value) || 0;
   const total = s + p + i || 1;
 
-  // Normalize to percentages
   state.alloc.savings = (s / total) * 100;
   state.alloc.spending = (p / total) * 100;
   state.alloc.investing = (i / total) * 100;
@@ -203,13 +202,12 @@ function saveSettingsFromUI() {
   renderSettings();
   renderSummary();
 
-  // 🔽 Collapse the Settings card after saving
-  const settingsCard = document.getElementById("settingsCard");
+  const settingsCard = $("settingsCard");
   if (settingsCard) {
-    settingsCard.classList.toggle("hidden");
+    settingsCard.classList.add("hidden");
   }
 }
-$("saveSettings").closest(".card").classList.add("hidden");
+
 function saveBalancesFromUI() {
   state.balances.checking = Number($("balChecking").value) || 0;
   state.balances.savings = Number($("balSavings").value) || 0;
@@ -325,13 +323,23 @@ function resetAll() {
 document.addEventListener("DOMContentLoaded", () => {
   renderAll();
 
-  $("saveSettings").addEventListener("click", saveSettingsFromUI);
-  document.addEventListener("DOMContentLoaded", () => {
-  renderAll();
+  const settingsCard = $("settingsCard");
+  const toggleSettingsBtn = $("toggleSettings");
+
+  // start hidden
+  if (settingsCard) {
+    settingsCard.classList.add("hidden");
+  }
+
+  if (toggleSettingsBtn && settingsCard) {
+    toggleSettingsBtn.addEventListener("click", () => {
+      const hidden = settingsCard.classList.toggle("hidden");
+      toggleSettingsBtn.textContent = hidden ? "Show Settings" : "Hide Settings";
+    });
+  }
 
   $("saveSettings").addEventListener("click", saveSettingsFromUI);
-  ...
-});
+
   $("balChecking").addEventListener("input", saveBalancesFromUI);
   $("balSavings").addEventListener("input", saveBalancesFromUI);
   $("payHours").addEventListener("input", savePayFromUI);
@@ -354,7 +362,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("resetAll").addEventListener("click", resetAll);
 
-  // Register service worker if present
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker
       .register("service-worker.js")
