@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spending-tracker-cache-v1';
+const CACHE_NAME = 'spending-tracker-cache-v2';  // bumped version
 const ASSETS = [
   './',
   './index.html',
@@ -27,15 +27,22 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// NETWORK-FIRST, CACHE-FALLBACK
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  // Only handle GET
   if (request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request);
-    })
+    fetch(request)
+      .then((networkResponse) => {
+        // update cache with fresh version in background
+        const copy = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        return networkResponse;
+      })
+      .catch(() => {
+        // offline → use cache if we have it
+        return caches.match(request);
+      })
   );
 });
