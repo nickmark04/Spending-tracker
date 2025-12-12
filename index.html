@@ -2,10 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
   <title>BudgetGPT Tracker</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="manifest" href="manifest.json" />
+
+  <!-- Better fullscreen behavior / status bar color -->
+  <meta name="theme-color" content="#020308" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </head>
 <body>
   <header>
@@ -40,6 +48,12 @@
           <input type="number" id="allocInvesting" step="1" />
         </label>
       </div>
+
+      <label class="inline-setting">
+        <span>Enable recurring expenses section</span>
+        <input type="checkbox" id="useRecurring" />
+      </label>
+
       <button id="saveSettings">Save settings</button>
     </section>
 
@@ -74,6 +88,22 @@
           Savings ($)
           <input type="number" id="balSavings" step="0.01" />
         </label>
+      </div>
+    </section>
+
+    <!-- RECURRING EXPENSES -->
+    <section class="card" id="recurringCard">
+      <h2>Recurring Expenses (per pay period)</h2>
+      <div class="add-row">
+        <input type="text" id="recName" placeholder="e.g. Gym, Subscriptions" />
+        <input type="number" id="recAmount" placeholder="Amount" step="0.01" />
+        <input type="text" id="recNote" placeholder="Note (optional)" />
+        <button id="addRecurring">Add</button>
+      </div>
+      <ul id="recurringList" class="item-list"></ul>
+      <div class="output-row">
+        <span>Total recurring (included every paycheck):</span>
+        <span id="recurringTotal">$0</span>
       </div>
     </section>
 
@@ -129,7 +159,11 @@
         <span id="totalCashAfter">$0</span>
       </div>
       <div class="output-row">
-        <span>Total required (bills + debts):</span>
+        <span>Total recurring (if enabled):</span>
+        <span id="summaryRecurring">$0</span>
+      </div>
+      <div class="output-row">
+        <span>Total required (bills + debts + recurring):</span>
         <span id="totalRequired">$0</span>
       </div>
       <div class="output-row">
