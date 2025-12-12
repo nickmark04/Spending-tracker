@@ -11,11 +11,12 @@
   <header>
     <h1>BudgetGPT Tracker</h1>
     <p class="subtitle">Quick view of cash, cards, and safe-to-spend.</p>
+    <button id="toggleSettings" style="margin-top:8px;">Show Settings</button>
   </header>
 
   <main>
     <!-- SETTINGS -->
-    <section class="card">
+    <section class="card" id="settingsCard">
       <h2>Settings</h2>
       <div class="grid-2">
         <label>
@@ -41,7 +42,6 @@
       </div>
       <button id="saveSettings">Save settings</button>
     </section>
-    <button id="showSettingsBtn" style="margin-bottom:10px;">Show Settings</button>
 
     <!-- PAYCHECK -->
     <section class="card">
