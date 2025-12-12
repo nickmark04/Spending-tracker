@@ -215,3 +215,32 @@ hr {
 .hidden {
   display: none;
 }
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: radial-gradient(circle at top, #111827 0, #020308 55%);
+  color: var(--text);
+  font-family: var(--font-main);
+}
+
+body {
+  min-height: 100vh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.inline-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 8px 0 10px;
+}
+
+.inline-setting input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
